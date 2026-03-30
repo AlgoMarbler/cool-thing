@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ambient Sound Mixer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* CSS Variables & Theme System */
+    :root {
+      /* Default theme (Midnight Forest) */
+      --bg-base: #0d1f1a;
+      --bg-mid: #1a3d32;
+      --bg-highlight: #2d6b54;
+      --accent-glow: rgba(80, 220, 140, 0.5);
+      --text-primary: rgba(255, 255, 255, 0.95);
+      --text-secondary: rgba(255, 255, 255, 0.7);
+      --text-muted: rgba(255, 255, 255, 0.5);
+      --glass-bg: rgba(255, 255, 255, 0.08);
+      --glass-border: rgba(255, 255, 255, 0.15);
+      --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      --glass-blur: blur(20px);
+      --btn-size: clamp(140px, 22vw, 200px);
+      --btn-gap: clamp(16px, 3vw, 28px);
+      --theme-bar-width: 80px;
+      --transition-fast: 0.15s ease;
+      --transition-medium: 0.3s ease;
+      --transition-slow: 0.8s ease;
+    }
+
+    /* Theme: Deep Ocean */
+    [data-theme="ocean"] {
+      --bg-base: #051428;
+      --bg-mid: #0a2a52;
+      --bg-highlight: #155799;
+      --accent-glow: rgba(80, 180, 255, 0.6);
+    }
+
+    /* Theme: Sunset */
+    [data-theme="sunset"] {
+      --bg-base: #2d1b2e;
+      --bg-mid: #5c2a3d;
+      --bg-highlight: #d94b6a;
+      --accent-glow: rgba(255, 120, 140, 0.6);
+    }
+
+    /* Theme: Moonlight */
+    [data-theme="moonlight"] {
+      --bg-base: #0a0a14;
+      --bg-mid: #1a1a2e;
+      --bg-highlight: #4a4a6a;
+      --accent-glow: rgba(180, 180, 220, 0.5);
+    }
+
+    /* Theme: Lavender Pastel */
+    [data-theme="lavender"] {
+      --bg-base: #1a1428;
+      --bg-mid: #3d2a5c;
+      --bg-highlight: #8b6fae;
+      --accent-glow: rgba(200, 160, 255, 0.6);
+    }
+
+    /* Theme: Ember/Fire */
+    [data-theme="ember"] {
+      --bg-base: #1f0a0a;
+      --bg-mid: #3d1510;
+      --bg-highlight: #8a2c1a;
+      --accent-glow: rgba(255, 100, 60, 0.6);
+    }
+
+    /* Theme: Mint Breeze */
+    [data-theme="mint"] {
+      --bg-base: #0d1f1f;
+      --bg-mid: #1a3d3d;
+      --bg-highlight: #3d8a8a;
+      --accent-glow: rgba(100, 220, 200, 0.6);
+    }
+
+    /* Theme: Golden Hour */
+    [data-theme="golden"] {
+      --bg-base: #2a1f0d;
+      --bg-mid: #4a3515;
+      --bg-highlight: #8a6a2a;
+      --accent-glow: rgba(255, 200, 80, 0.6);
+    }
+
+    /* Theme: Berry */
+    [data-theme="berry"] {
+      --bg-base: #1f0d1a;
+      --bg-mid: #3d1a2e;
+      --bg-highlight: #7a2d5a;
+      --accent-glow: rgba(220, 80, 160, 0.6);
+    }
+
+    /* Theme: Arctic */
+    [data-theme="arctic"] {
+      --bg-base: #0d1a1f;
+      --bg-mid: #1a2e3d;
+      --bg-highlight: #3a5a6a;
+      --accent-glow: rgba(140, 200, 220, 0.6);
+    }
+
+    /* Theme: Cherry Blossom */
+    [data-theme="sakura"] {
+      --bg-base: #1f151a;
+      --bg-mid: #3d2a32;
+      --bg-highlight: #8a5a6a;
+      --accent-glow: rgba(255, 160, 180, 0.6);
+    }
+
+    /* Theme: Cyberpunk */
+    [data-theme="cyber"] {
+      --bg-base: #0d0514;
+      --bg-mid: #1f0a28;
+      --bg-highlight: #4a1a5a;
+      --accent-glow: rgba(255, 0, 255, 0.6);
+    }
+
+    /* Theme: Coffee */
+    [data-theme="coffee"] {
+      --bg-base: #1a1410;
+      --bg-mid: #3d2a1f;
+      --bg-highlight: #6a4a3a;
+      --accent-glow: rgba(200, 160, 120, 0.6);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-base);
+      transition: background-color var(--transition-slow);
+      color: var(--text-primary);
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at 30% 20%, var(--bg-mid) 0%, transparent 50%),
+                  radial-gradient(ellipse at 70% 80%, var(--bg-highlight) 0%, transparent 40%);
+      opacity: 0.6;
+      transition: all var(--transition-slow);
+      z-index: -2;
+      pointer-events: none;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, transparent 0%, rgba(0,0,0,0.3) 100%);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* Animated Background Particles */
+    .particles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.25);
+      border-radius: 50%;
+      animation: float 15s infinite ease-in-out;
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+      10% { opacity: 0.6; }
+      90% { opacity: 0.6; }
+      100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* Ambient Orbs - Theme Colored */
+    .ambient-orbs {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.3;
+      animation: orb-float 25s infinite ease-in-out;
+      background: var(--accent-glow);
+    }
+
+    .orb-1 {
+      width: 500px;
+      height: 500px;
+      top: -150px;
+      right: -100px;
+    }
+
+    .orb-2 {
+      width: 400px;
+      height: 400px;
+      bottom: -100px;
+      left: -100px;
+      animation-delay: -8s;
+    }
+
+    .orb-3 {
+      width: 300px;
+      height: 300px;
+      top: 60%;
+      left: 60%;
+      animation-delay: -16s;
+    }
+
+    @keyframes orb-float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(60px, -40px) scale(1.15); }
+      50% { transform: translate(-40px, 60px) scale(0.9); }
+      75% { transform: translate(-60px, -30px) scale(1.05); }
+    }
+
+    /* App Header */
+    .app-header {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 40px 20px 20px;
+      margin-left: var(--theme-bar-width);
+    }
+
+    .app-title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      font-size: clamp(1.5rem, 4vw, 2.2rem);
+      font-weight: 700;
+      margin-bottom: 8px;
+      text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .title-icon {
+      font-size: 1.2em;
+      animation: pulse 2s infinite ease-in-out;
+      filter: drop-shadow(0 0 20px var(--accent-glow));
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    .app-subtitle {
+      font-size: clamp(0.9rem, 2vw, 1.1rem);
+      color: var(--text-secondary);
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+
+    /* Theme Bar - Scrollable for more themes */
+    .theme-bar {
+      position: fixed;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 16px 12px;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      box-shadow: var(--glass-shadow);
+      z-index: 100;
+      max-height: 80vh;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.2) transparent;
+    }
+
+    .theme-bar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .theme-bar::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+    }
+
+    .theme-label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .theme-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .theme-btn:hover {
+      transform: scale(1.12) rotate(5deg);
+      border-color: rgba(255, 255, 255, 0.6);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .theme-btn.active {
+      border-color: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 20px rgba(0, 0, 0, 0.4);
+      transform: scale(1.05);
+    }
+
+    .theme-btn.active::after {
+      content: '✓';
+      position: absolute;
+      bottom: 2px;
+      right: 4px;
+      font-size: 10px;
+      color: white;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+      font-weight: bold;
+    }
+
+    /* Main Controls Grid */
+    .controls {
+      position: relative;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(var(--btn-size), 1fr));
+      gap: var(--btn-gap);
+      padding: 20px 30px 100px calc(30px + var(--theme-bar-width));
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* Sound Buttons */
+    .sound-btn {
+      aspect-ratio: 1;
+      border: none;
+      border-radius: 24px;
+      cursor: pointer;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      transition: all var(--transition-medium);
+      position: relative;
+      overflow: hidden;
+      padding: 16px;
+    }
+
+    .sound-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%, rgba(255,255,255,0.05) 100%);
+      opacity: 0;
+      transition: opacity var(--transition-medium);
+    }
+
+    .sound-btn:hover {
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .sound-btn:hover::before { opacity: 1; }
+    .sound-btn:active { transform: translateY(-2px) scale(0.98); }
+
+    /* State 1 - Low (20%) - Subtle */
+    .sound-btn[data-state="1"] {
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 20px var(--accent-glow);
+      border-color: rgba(255, 255, 255, 0.35);
+    }
+
+    /* State 2 - Medium (50%) - Moderate */
+    .sound-btn[data-state="2"] {
+      background: rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 35px var(--accent-glow), 0 0 60px var(--accent-glow);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* State 3 - High (90%) - Strong */
+    .sound-btn[data-state="3"] {
+      background: rgba(255, 255, 255, 0.28);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 50px var(--accent-glow), 0 0 90px var(--accent-glow), 0 0 120px var(--accent-glow);
+      border-color: rgba(255, 255, 255, 0.65);
+    }
+
+    /* State 4 - Max (100%) - Intense */
+    .sound-btn[data-state="4"] {
+      background: rgba(255, 255, 255, 0.38);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 70px var(--accent-glow), 0 0 110px var(--accent-glow), 0 0 150px var(--accent-glow);
+      border-color: rgba(255, 255, 255, 0.8);
+      animation: active-glow 1.5s infinite ease-in-out;
+    }
+
+    @keyframes active-glow {
+      0%, 100% { 
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 70px var(--accent-glow), 0 0 110px var(--accent-glow), 0 0 150px var(--accent-glow);
+        background: rgba(255, 255, 255, 0.38);
+      }
+      50% { 
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 90px var(--accent-glow), 0 0 140px var(--accent-glow), 0 0 180px var(--accent-glow);
+        background: rgba(255, 255, 255, 0.45);
+      }
+    }
+
+    .sound-btn .icon-wrapper {
+      width: 55%;
+      height: 55%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform var(--transition-medium);
+      z-index: 2;
+    }
+
+    .sound-btn .icon {
+      font-size: 3rem;
+      filter: grayscale(100%) brightness(0.7);
+      opacity: 0.5;
+      transition: all var(--transition-medium);
+    }
+
+    .sound-btn:hover .icon {
+      filter: grayscale(0%) brightness(1);
+      opacity: 1;
+      transform: scale(1.1);
+    }
+
+    /* Louder sounds = brighter icons with more glow */
+    .sound-btn[data-state="1"] .icon {
+      filter: grayscale(20%) brightness(1.2);
+      opacity: 0.9;
+      text-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .sound-btn[data-state="2"] .icon {
+      filter: grayscale(0%) brightness(1.4);
+      opacity: 1;
+      text-shadow: 0 0 20px var(--accent-glow), 0 0 40px var(--accent-glow);
+      animation: icon-flicker 3s infinite;
+    }
+
+    .sound-btn[data-state="3"] .icon {
+      filter: grayscale(0%) brightness(1.7);
+      opacity: 1;
+      text-shadow: 0 0 30px var(--accent-glow), 0 0 60px var(--accent-glow);
+      animation: icon-flicker 2s infinite;
+    }
+
+    .sound-btn[data-state="4"] .icon {
+      filter: grayscale(0%) brightness(2);
+      opacity: 1;
+      text-shadow: 0 0 40px var(--accent-glow), 0 0 80px var(--accent-glow), 0 0 120px var(--accent-glow);
+      animation: icon-pulse 1s infinite ease-in-out;
+    }
+
+    @keyframes icon-flicker {
+      0%, 100% { filter: grayscale(0%) brightness(1.5); }
+      50% { filter: grayscale(0%) brightness(1.8); }
+    }
+
+    @keyframes icon-pulse {
+      0%, 100% { transform: scale(1); filter: grayscale(0%) brightness(2); }
+      50% { transform: scale(1.15); filter: grayscale(0%) brightness(2.3); }
+    }
+
+    .sound-btn .label {
+      font-size: clamp(0.8rem, 1.5vw, 0.95rem);
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: all var(--transition-fast);
+      text-align: center;
+      letter-spacing: 0.3px;
+      z-index: 2;
+    }
+
+    .sound-btn:hover .label { color: var(--text-primary); }
+
+    .sound-btn[data-state="1"] .label,
+    .sound-btn[data-state="2"] .label,
+    .sound-btn[data-state="3"] .label,
+    .sound-btn[data-state="4"] .label {
+      color: var(--text-primary);
+      font-weight: 600;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+
+    /* Horizontal Segmented Volume Bar */
+    .volume-bar-container {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 3px;
+      width: 75%;
+      height: 6px;
+      opacity: 0;
+      transition: opacity var(--transition-fast);
+      z-index: 2;
+    }
+
+    .sound-btn[data-state="1"] .volume-bar-container,
+    .sound-btn[data-state="2"] .volume-bar-container,
+    .sound-btn[data-state="3"] .volume-bar-container,
+    .sound-btn[data-state="4"] .volume-bar-container { 
+      opacity: 1; 
+    }
+
+    .volume-segment {
+      flex: 1;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+      transition: all var(--transition-fast);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .volume-segment::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--accent-glow);
+      opacity: 0;
+      transition: opacity var(--transition-fast);
+    }
+
+    /* State 1 - First segment */
+    .sound-btn[data-state="1"] .volume-segment:nth-child(1)::after { opacity: 1; }
+    .sound-btn[data-state="1"] .volume-segment:nth-child(1) { 
+      box-shadow: 0 0 8px var(--accent-glow);
+      background: var(--accent-glow);
+    }
+
+    /* State 2 - First two segments */
+    .sound-btn[data-state="2"] .volume-segment:nth-child(-n+2)::after { opacity: 1; }
+    .sound-btn[data-state="2"] .volume-segment:nth-child(-n+2) { 
+      box-shadow: 0 0 10px var(--accent-glow);
+      background: var(--accent-glow);
+    }
+
+    /* State 3 - First three segments */
+    .sound-btn[data-state="3"] .volume-segment:nth-child(-n+3)::after { opacity: 1; }
+    .sound-btn[data-state="3"] .volume-segment:nth-child(-n+3) { 
+      box-shadow: 0 0 12px var(--accent-glow);
+      background: var(--accent-glow);
+    }
+
+    /* State 4 - All segments with wave animation */
+    .sound-btn[data-state="4"] .volume-segment::after { opacity: 1; }
+    .sound-btn[data-state="4"] .volume-segment { 
+      box-shadow: 0 0 15px var(--accent-glow);
+      background: var(--accent-glow);
+      animation: segment-wave 0.8s infinite ease-in-out;
+    }
+
+    .sound-btn[data-state="4"] .volume-segment:nth-child(1) { animation-delay: 0s; }
+    .sound-btn[data-state="4"] .volume-segment:nth-child(2) { animation-delay: 0.1s; }
+    .sound-btn[data-state="4"] .volume-segment:nth-child(3) { animation-delay: 0.2s; }
+    .sound-btn[data-state="4"] .volume-segment:nth-child(4) { animation-delay: 0.3s; }
+
+    @keyframes segment-wave {
+      0%, 100% { 
+        box-shadow: 0 0 10px var(--accent-glow);
+        filter: brightness(1);
+      }
+      50% { 
+        box-shadow: 0 0 20px var(--accent-glow), 0 0 30px var(--accent-glow);
+        filter: brightness(1.4);
+      }
+    }
+
+    /* Display Modes */
+    body.mode-icons .sound-btn .label {
+      opacity: 0;
+      transform: translateY(10px);
+      position: absolute;
+    }
+
+    body.mode-icons .sound-btn:hover .label {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    body.mode-text .sound-btn .icon-wrapper {
+      opacity: 0;
+      transform: scale(0.5);
+      position: absolute;
+    }
+
+    body.mode-text .sound-btn .label {
+      font-size: clamp(1.2rem, 3vw, 1.8rem);
+      font-weight: 700;
+      position: relative;
+      opacity: 1;
+      transform: none;
+    }
+
+    /* Global Controls */
+    .global-controls {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      z-index: 90;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 8px;
+      box-shadow: var(--glass-shadow);
+    }
+
+    .global-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 12px;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .global-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+      transform: translateY(-2px);
+    }
+
+    /* Settings Button */
+    .settings-btn {
+      position: fixed;
+      right: 20px;
+      top: 20px;
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      z-index: 100;
+      box-shadow: var(--glass-shadow);
+    }
+
+    .settings-btn:hover {
+      transform: rotate(30deg) scale(1.1);
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 30px var(--accent-glow);
+    }
+
+    /* Modal */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      visibility: hidden;
+      transition: all var(--transition-medium);
+      padding: 20px;
+    }
+
+    .modal[aria-hidden="false"] {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-panel {
+      background: var(--glass-bg);
+      backdrop-filter: blur(40px);
+      -webkit-backdrop-filter: blur(40px);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+      width: 100%;
+      max-width: 420px;
+      transform: scale(0.9) translateY(20px);
+      transition: transform var(--transition-medium);
+    }
+
+    .modal[aria-hidden="false"] .modal-panel {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 24px 16px;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .modal-header h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .close-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: none;
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: var(--text-primary);
+      transform: rotate(90deg);
+    }
+
+    /* Form Styles */
+    .display-form { padding: 20px 24px; }
+
+    .form-section { margin-bottom: 24px; }
+    .form-section:last-child { margin-bottom: 0; }
+
+    .form-label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .radio-option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      border: 1px solid transparent;
+    }
+
+    .radio-option:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--glass-border);
+    }
+
+    .radio-option input { display: none; }
+
+    .radio-custom {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--text-muted);
+      border-radius: 50%;
+      position: relative;
+      transition: all var(--transition-fast);
+      flex-shrink: 0;
+    }
+
+    .radio-option input:checked + .radio-custom {
+      border-color: var(--text-primary);
+      background: var(--text-primary);
+    }
+
+    .radio-option input:checked + .radio-custom::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 8px;
+      height: 8px;
+      background: var(--bg-base);
+      border-radius: 50%;
+    }
+
+    .radio-label {
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    /* Volume Slider */
+    .volume-slider-container {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .volume-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: var(--text-primary);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .volume-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 0 8px var(--accent-glow);
+    }
+
+    .volume-value {
+      font-size: 0.9rem;
+      font-weight: 600;
+      min-width: 45px;
+      text-align: right;
+    }
+
+    /* Modal Footer */
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 16px 24px 24px;
+      border-top: 1px solid var(--glass-border);
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 12px;
+      border: none;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-secondary);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: var(--text-primary);
+    }
+
+    .btn-primary {
+      background: var(--text-primary);
+      color: var(--bg-base);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Active Indicator */
+    .active-indicator {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      z-index: 80;
+      opacity: 0;
+      transition: opacity var(--transition-medium);
+      pointer-events: none;
+    }
+
+    .active-indicator.visible { opacity: 1; }
+
+    .indicator-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-glow);
+      border-radius: 50%;
+      animation: blink 1.5s infinite ease-in-out;
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; box-shadow: 0 0 5px var(--accent-glow); }
+      50% { opacity: 0.4; box-shadow: 0 0 15px var(--accent-glow); }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      :root {
+        --theme-bar-width: 64px;
+        --btn-size: clamp(120px, 40vw, 160px);
+      }
+      
+      .theme-bar {
+        left: 8px;
+        padding: 12px 8px;
+        gap: 8px;
+      }
+      
+      .theme-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+      }
+      
+      .controls {
+        padding: 16px 16px 100px calc(16px + var(--theme-bar-width));
+        gap: 16px;
+      }
+      
+      .app-header {
+        margin-left: var(--theme-bar-width);
+        padding: 24px 16px 16px;
+      }
+      
+      .sound-btn { border-radius: 20px; }
+      .global-controls { bottom: 16px; }
+      
+      .settings-btn {
+        right: 12px;
+        top: 12px;
+        width: 44px;
+        height: 44px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      :root { --btn-size: clamp(100px, 45vw, 140px); }
+      .sound-btn .label { font-size: 0.75rem; }
+      body.mode-text .sound-btn .label { font-size: 1rem; }
+      .global-btn span { display: none; }
+      .global-btn { padding: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Animated background particles -->
+  <div class="particles" id="particles"></div>
+  
+  <!-- Ambient gradient orbs -->
+  <div class="ambient-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- Theme switcher -->
+  <aside class="theme-bar" id="themeBar" aria-label="Color scheme switcher">
+    <div class="theme-label">Themes</div>
+  </aside>
+
+  <!-- Header -->
+  <header class="app-header">
+    <h1 class="app-title">
+      <span class="title-icon">🎵</span>
+      <span class="title-text">Ambient Mixer</span>
+    </h1>
+    <p class="app-subtitle">Mix your perfect soundscape</p>
+  </header>
+
+  <!-- Main sound grid -->
+  <main class="controls" id="controls"></main>
+
+  <!-- Global controls -->
+  <div class="global-controls">
+    <button id="muteAllBtn" class="global-btn" title="Mute All">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <line x1="23" y1="9" x2="17" y2="15"></line>
+        <line x1="17" y1="9" x2="23" y2="15"></line>
+      </svg>
+      <span>Mute All</span>
+    </button>
+    <button id="randomMixBtn" class="global-btn" title="Random Mix">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="16 3 21 3 21 8"></polyline>
+        <line x1="4" y1="20" x2="21" y2="3"></line>
+        <polyline points="21 16 21 21 16 21"></polyline>
+        <line x1="15" y1="15" x2="21" y2="21"></line>
+        <line x1="4" y1="4" x2="9" y2="9"></line>
+      </svg>
+      <span>Random Mix</span>
+    </button>
+  </div>
+
+  <!-- Settings button -->
+  <button id="settingsBtn" class="settings-btn" aria-label="Settings">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
+  </button>
+
+  <!-- Settings modal -->
+  <div id="settingsModal" class="modal" aria-hidden="true">
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal-header">
+        <h2 id="settingsTitle">Display Settings</h2>
+        <button id="closeModal" class="close-btn" aria-label="Close settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <form id="displayForm" class="display-form">
+        <div class="form-section">
+          <label class="form-label">Display Mode</label>
+          <div class="radio-group">
+            <label class="radio-option">
+              <input type="radio" name="mode" value="both" checked>
+              <span class="radio-custom"></span>
+              <span class="radio-label">Icons & Text</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="mode" value="icons">
+              <span class="radio-custom"></span>
+              <span class="radio-label">Icons Only</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="mode" value="text">
+              <span class="radio-custom"></span>
+              <span class="radio-label">Text Only</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <label class="form-label">Master Volume</label>
+          <div class="volume-slider-container">
+            <input type="range" id="masterVolume" min="0" max="100" value="100" class="volume-slider">
+            <span class="volume-value">100%</span>
+          </div>
+        </div>
+      </form>
+
+      <div class="modal-footer">
+        <button id="resetSettings" class="btn btn-secondary" type="button">Reset</button>
+        <button id="closeModalBtn" class="btn btn-primary" type="button">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active sounds indicator -->
+  <div class="active-indicator" id="activeIndicator">
+    <span class="indicator-dot"></span>
+    <span class="indicator-text">0 sounds active</span>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Storage keys
+      const SETTINGS_KEY = 'sound-ui-mode';
+      const THEME_KEY = 'sound-ui-theme';
+      const MASTER_VOLUME_KEY = 'sound-master-volume';
+      
+      // Defaults
+      const defaultMode = 'both';
+      const defaultTheme = 'forest';
+      const defaultMasterVolume = 100;
+
+      // DOM elements
+      const controls = document.getElementById('controls');
+      const themeBar = document.getElementById('themeBar');
+      const settingsBtn = document.getElementById('settingsBtn');
+      const modal = document.getElementById('settingsModal');
+      const closeModal = document.getElementById('closeModal');
+      const closeModalBtn = document.getElementById('closeModalBtn');
+      const displayForm = document.getElementById('displayForm');
+      const resetSettings = document.getElementById('resetSettings');
+      const masterVolumeSlider = document.getElementById('masterVolume');
+      const volumeValue = document.querySelector('.volume-value');
+      const muteAllBtn = document.getElementById('muteAllBtn');
+      const randomMixBtn = document.getElementById('randomMixBtn');
+      const activeIndicator = document.getElementById('activeIndicator');
+      const particlesContainer = document.getElementById('particles');
+
+      // Sound definitions with emoji icons
+      const sounds = [
+        // Nature / weather
+        { id: 'rain', label: 'Rain', icon: '🌧️', audio: 'rain.mp3' },
+        { id: 'thunder', label: 'Thunder', icon: '⚡', audio: 'thunder.mp3' },
+        { id: 'wind', label: 'Wind', icon: '🍃', audio: 'wind.mp3' },
+        { id: 'forest', label: 'Forest', icon: '🌲', audio: 'forest.mp3' },
+        { id: 'birds', label: 'Birds', icon: '🐦', audio: 'birds.mp3' },
+        { id: 'waterfall', label: 'Waterfall', icon: '💧', audio: 'waterfall.mp3' },
+        { id: 'beach', label: 'Ocean', icon: '🏖️', audio: 'beach.mp3' },
+        { id: 'fire', label: 'Fire', icon: '🔥', audio: 'fire.mp3' },
+
+        // Animals
+        { id: 'cat', label: 'Cat', icon: '🐱', audio: 'cat.mp3' },
+        { id: 'dog', label: 'Dog', icon: '🐕', audio: 'dog.mp3' },
+
+        // Human / daily activity
+        { id: 'talk', label: 'Talk', icon: '💬', audio: 'talk.mp3' },
+        { id: 'eat', label: 'Eating', icon: '🍽️', audio: 'eat.mp3' },
+        { id: 'drink', label: 'Drink', icon: '🥤', audio: 'drink.mp3' },
+        { id: 'keyboard', label: 'Typing', icon: '⌨️', audio: 'keyboard.mp3' },
+        { id: 'wash', label: 'Washing', icon: '🧼', audio: 'wash.mp3' },
+        { id: 'toilet', label: 'Bathroom', icon: '🚽', audio: 'toilet.mp3' },
+
+        // Places / environments
+        { id: 'city', label: 'City', icon: '🏙️', audio: 'city.mp3' },
+        { id: 'coffee', label: 'Café', icon: '☕', audio: 'coffee.mp3' },
+        { id: 'train', label: 'Train', icon: '🚂', audio: 'train.mp3' },
+        { id: 'festival', label: 'Festival', icon: '🎉', audio: 'festival.mp3' },
+
+        // Music / sound
+        { id: 'white', label: 'White Noise', icon: '🌫️', audio: 'white_noise.mp3' },
+        { id: 'violin', label: 'Violin', icon: '🎻', audio: 'violin.mp3' },
+        { id: 'drum', label: 'Drums', icon: '🥁', audio: 'drum.mp3' },
+        { id: 'drumbeat', label: 'Guitar', icon: '🎸', audio: 'guitar.mp3' },
+        { id: 'orchestra', label: 'Orchestra', icon: '🎶', audio: 'music.mp3' },
+      ];
+
+      // Theme definitions - each with distinct base, mid, and highlight colors
+      const themes = [
+        { name: 'forest', label: 'Forest', colors: ['#0d1f1a', '#1a3d32', '#2d6b54'] },
+        { name: 'ocean', label: 'Ocean', colors: ['#051428', '#0a2a52', '#155799'] },
+        { name: 'sunset', label: 'Sunset', colors: ['#2d1b2e', '#5c2a3d', '#d94b6a'] },
+        { name: 'moonlight', label: 'Moonlight', colors: ['#0a0a14', '#1a1a2e', '#4a4a6a'] },
+        { name: 'lavender', label: 'Lavender', colors: ['#1a1428', '#3d2a5c', '#8b6fae'] },
+        { name: 'ember', label: 'Ember', colors: ['#1f0a0a', '#3d1510', '#8a2c1a'] },
+        { name: 'mint', label: 'Mint', colors: ['#0d1f1f', '#1a3d3d', '#3d8a8a'] },
+        { name: 'golden', label: 'Golden', colors: ['#2a1f0d', '#4a3515', '#8a6a2a'] },
+        { name: 'berry', label: 'Berry', colors: ['#1f0d1a', '#3d1a2e', '#7a2d5a'] },
+        { name: 'arctic', label: 'Arctic', colors: ['#0d1a1f', '#1a2e3d', '#3a5a6a'] },
+        { name: 'sakura', label: 'Sakura', colors: ['#1f151a', '#3d2a32', '#8a5a6a'] },
+        { name: 'cyber', label: 'Cyber', colors: ['#0d0514', '#1f0a28', '#4a1a5a'] },
+        { name: 'coffee', label: 'Coffee', colors: ['#1a1410', '#3d2a1f', '#6a4a3a'] }
+      ];
+
+      // State management
+      let masterVolume = getMasterVolume();
+      let activeSounds = new Map();
+
+      // Volume states
+      const states = [
+        { volume: 0.0, label: 'Off' },
+        { volume: 0.2, label: 'Low' },
+        { volume: 0.5, label: 'Medium' },
+        { volume: 0.9, label: 'High' },
+        { volume: 1.0, label: 'Max' }
+      ];
+
+      // Create floating particles
+      function createParticles() {
+        for (let i = 0; i < 30; i++) {
+          const particle = document.createElement('div');
+          particle.className = 'particle';
+          particle.style.left = Math.random() * 100 + '%';
+          particle.style.animationDelay = Math.random() * 15 + 's';
+          particle.style.animationDuration = (15 + Math.random() * 10) + 's';
+          particlesContainer.appendChild(particle);
+        }
+      }
+
+      // Getters and setters
+      function getMode() {
+        return localStorage.getItem(SETTINGS_KEY) || defaultMode;
+      }
+
+      function setMode(mode) {
+        localStorage.setItem(SETTINGS_KEY, mode);
+        applyMode(mode);
+      }
+
+      function getTheme() {
+        return localStorage.getItem(THEME_KEY) || defaultTheme;
+      }
+
+      function setTheme(themeName) {
+        localStorage.setItem(THEME_KEY, themeName);
+        applyTheme(themeName);
+      }
+
+      function getMasterVolume() {
+        return parseInt(localStorage.getItem(MASTER_VOLUME_KEY)) || defaultMasterVolume;
+      }
+
+      function setMasterVolume(volume) {
+        localStorage.setItem(MASTER_VOLUME_KEY, volume);
+        masterVolume = volume;
+        updateAllVolumes();
+      }
+
+      // Apply functions
+      function applyMode(mode) {
+        document.body.classList.remove('mode-icons', 'mode-text', 'mode-both');
+        document.body.classList.add(`mode-${mode}`);
+
+        const radios = displayForm.elements['mode'];
+        for (const el of radios) {
+          el.checked = (el.value === mode);
+        }
+      }
+
+      function applyTheme(themeName) {
+        document.body.setAttribute('data-theme', themeName);
+
+        document.querySelectorAll('.theme-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.theme === themeName);
+        });
+      }
+
+      // Build theme bar
+      function buildThemeBar() {
+        themes.forEach(theme => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'theme-btn';
+          btn.dataset.theme = theme.name;
+          btn.title = theme.label;
+          btn.setAttribute('aria-label', `${theme.label} theme`);
+          // Create gradient preview from the three theme colors
+          btn.style.background = `linear-gradient(135deg, ${theme.colors[0]} 0%, ${theme.colors[1]} 50%, ${theme.colors[2]} 100%)`;
+
+          btn.addEventListener('click', () => {
+            setTheme(theme.name);
+            btn.style.transform = 'scale(0.9)';
+            setTimeout(() => btn.style.transform = '', 150);
+          });
+
+          themeBar.appendChild(btn);
+        });
+      }
+
+      // Update active indicator
+      function updateActiveIndicator() {
+        const count = activeSounds.size;
+        const text = activeIndicator.querySelector('.indicator-text');
+        text.textContent = `${count} sound${count !== 1 ? 's' : ''} active`;
+        activeIndicator.classList.toggle('visible', count > 0);
+      }
+
+      // Update all volumes
+      function updateAllVolumes() {
+        activeSounds.forEach((data) => {
+          const { audio, state } = data;
+          const baseVolume = states[state].volume;
+          audio.volume = baseVolume * (masterVolume / 100);
+        });
+      }
+
+      // Setup sound button
+      function setupSound(button, audio, soundId) {
+        let state = 0;
+        let fadeInterval = null;
+
+        function fadeTo(targetVolume, duration = 300) {
+          if (fadeInterval) clearInterval(fadeInterval);
+
+          const startVolume = audio.volume || 0;
+          const adjustedTarget = targetVolume * (masterVolume / 100);
+          const steps = 30;
+          const stepTime = Math.max(8, duration / steps);
+          let step = 0;
+
+          fadeInterval = setInterval(() => {
+            step++;
+            audio.volume = startVolume + (adjustedTarget - startVolume) * (step / steps);
+
+            if (step >= steps) {
+              audio.volume = adjustedTarget;
+              clearInterval(fadeInterval);
+              fadeInterval = null;
+
+              if (adjustedTarget < 0.001) {
+                audio.pause();
+                activeSounds.delete(soundId);
+              } else {
+                activeSounds.set(soundId, { audio, state });
+              }
+              updateActiveIndicator();
+            }
+          }, stepTime);
+        }
+
+        button.addEventListener('click', async () => {
+          state = (state + 1) % states.length;
+          const s = states[state];
+
+          button.setAttribute('data-state', state);
+
+          try {
+            if (state === 0) {
+              fadeTo(0, 400);
+            } else {
+              if (audio.paused) {
+                audio.volume = 0;
+                await audio.play();
+              }
+              fadeTo(s.volume, 300);
+              activeSounds.set(soundId, { audio, state });
+              updateActiveIndicator();
+            }
+          } catch (err) {
+            console.warn('Audio playback failed:', err);
+            if (state > 0) {
+              activeSounds.set(soundId, { audio, state });
+              updateActiveIndicator();
+            }
+          }
+        });
+
+        button.setAttribute('data-state', '0');
+        audio.volume = 0;
+        audio.pause();
+      }
+
+      // Build sound buttons
+      function buildSoundButtons() {
+        sounds.forEach(sound => {
+          const button = document.createElement('button');
+          button.className = 'sound-btn';
+          button.id = `${sound.id}Btn`;
+          button.type = 'button';
+
+          // Horizontal segmented volume bar
+          const volumeBarHtml = `
+            <div class="volume-bar-container">
+              <div class="volume-segment"></div>
+              <div class="volume-segment"></div>
+              <div class="volume-segment"></div>
+              <div class="volume-segment"></div>
+            </div>
+          `;
+
+          button.innerHTML = `
+            <div class="icon-wrapper">
+              <span class="icon">${sound.icon}</span>
+            </div>
+            <span class="label">${sound.label}</span>
+            ${volumeBarHtml}
+            <audio id="${sound.id}Audio" src="${sound.audio}" loop preload="none"></audio>
+          `;
+
+          controls.appendChild(button);
+
+          const audio = button.querySelector('audio');
+          setupSound(button, audio, sound.id);
+        });
+      }
+
+      // Mute all
+      function muteAll() {
+        activeSounds.forEach((_, id) => {
+          const btn = document.getElementById(`${id}Btn`);
+          if (btn && btn.getAttribute('data-state') !== '0') {
+            btn.click();
+          }
+        });
+      }
+
+      // Random mix
+      function randomMix() {
+        muteAll();
+        
+        const numSounds = Math.floor(Math.random() * 3) + 3;
+        const shuffled = [...sounds].sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, numSounds);
+
+        selected.forEach((sound, index) => {
+          setTimeout(() => {
+            const btn = document.getElementById(`${sound.id}Btn`);
+            if (btn) {
+              const targetLevel = Math.floor(Math.random() * 3) + 2;
+              for (let i = 0; i < targetLevel; i++) {
+                btn.click();
+              }
+            }
+          }, index * 200);
+        });
+      }
+
+      // Event listeners
+      settingsBtn.addEventListener('click', () => {
+        modal.setAttribute('aria-hidden', 'false');
+      });
+
+      function closeModalFn() {
+        modal.setAttribute('aria-hidden', 'true');
+      }
+
+      closeModal.addEventListener('click', closeModalFn);
+      closeModalBtn.addEventListener('click', closeModalFn);
+
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModalFn();
+      });
+
+      displayForm.addEventListener('change', () => {
+        setMode(displayForm.elements['mode'].value);
+      });
+
+      masterVolumeSlider.addEventListener('input', (e) => {
+        const value = e.target.value;
+        volumeValue.textContent = `${value}%`;
+        setMasterVolume(value);
+      });
+
+      resetSettings.addEventListener('click', () => {
+        setMode(defaultMode);
+        setMasterVolume(defaultMasterVolume);
+        masterVolumeSlider.value = defaultMasterVolume;
+        volumeValue.textContent = `${defaultMasterVolume}%`;
+      });
+
+      muteAllBtn.addEventListener('click', muteAll);
+      randomMixBtn.addEventListener('click', randomMix);
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModalFn();
+        if (e.key === ' ' && e.target === document.body) {
+          e.preventDefault();
+          randomMix();
+        }
+      });
+
+      // Initialize
+      createParticles();
+      buildThemeBar();
+      buildSoundButtons();
+      applyMode(getMode());
+      applyTheme(getTheme());
+      masterVolumeSlider.value = masterVolume;
+      volumeValue.textContent = `${masterVolume}%`;
+    });
+  </script>
+</body>
+</html>
